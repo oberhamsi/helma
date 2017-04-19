@@ -34,6 +34,7 @@ import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.*;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.fileupload.servlet.ServletRequestContext;
+import org.apache.commons.io.IOUtils;
 
 /**
  * This is an abstract Hop servlet adapter. This class communicates with hop applications
@@ -201,7 +202,7 @@ public abstract class AbstractServletClient extends HttpServlet {
                     }
                 } else {
                     String host = (String) reqtrans.get("http_host");
-                    // http_host is guaranteed to be lower case 
+                    // http_host is guaranteed to be lower case
                     if (host != null && host.indexOf(resCookieDomain) == -1) {
                         resCookieDomain = null;
                     }
@@ -473,11 +474,11 @@ public abstract class AbstractServletClient extends HttpServlet {
         }
         try {
             OutputStream out = res.getOutputStream();
-    
+
             int bufferSize = 4096;
             byte buffer[] = new byte[bufferSize];
             int l;
-    
+
             while (length > 0) {
                 if (length < bufferSize) {
                     l = in.read(buffer, 0, length);
@@ -487,7 +488,7 @@ public abstract class AbstractServletClient extends HttpServlet {
                 if (l == -1) {
                     break;
                 }
-    
+
                 length -= l;
                 out.write(buffer, 0, l);
             }
@@ -575,7 +576,7 @@ public abstract class AbstractServletClient extends HttpServlet {
         String id = null;
         while (id == null || app.getSession(id) != null) {
             long l = secureRandom ?
-                    random.nextLong() : 
+                    random.nextLong() :
                     random.nextLong() + Runtime.getRuntime().freeMemory() ^ hashCode();
             if (l < 0)
                 l = -l;
@@ -690,7 +691,11 @@ public abstract class AbstractServletClient extends HttpServlet {
                 && contentType != null
                 && contentType.toLowerCase().startsWith("application/x-www-form-urlencoded");
 
-        if (queryString == null && !isFormPost) {
+        boolean isJsonPost = "post".equals(request.getMethod().toLowerCase())
+                                && contentType != null
+                                && contentType.toLowerCase().startsWith("application/json");
+
+        if (queryString == null && !isFormPost && !isJsonPost) {
             return;
         }
 
@@ -731,6 +736,10 @@ public abstract class AbstractServletClient extends HttpServlet {
                 reqtrans.setParameters(parameters, true);
                 parameters.clear();
             }
+        } else if (isJsonPost) {
+            ServletInputStream is = request.getInputStream();
+            String jsonString = IOUtils.toString(is, encoding);
+            reqtrans.addPostParam("_json_post_body", jsonString);
         }
     }
 
@@ -782,7 +791,7 @@ public abstract class AbstractServletClient extends HttpServlet {
                             key = new String(data, 0, ox, encoding);
                             ox = 0;
                         } else {
-                            data[ox++] = c;                            
+                            data[ox++] = c;
                         }
 
                         break;
